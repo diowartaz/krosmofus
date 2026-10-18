@@ -47,8 +47,6 @@ const ADAPTATIONS = [
     [/(document\.addEventListener\('keydown', e => \{\s*)if \(isFounder\(\)\) return;/, '$1return;'],
     [/if \(!isFounder\(\) && !\/\^\(INPUT\|TEXTAREA\)\$\/\.test/, 'if (false && !/^(INPUT|TEXTAREA)$/.test'],
     [/^;\(function\(\)\{function lock\(\)\{.*$/m, ''],
-    // test : chaque booster Archimonstres contient forcément l'archimonstre n° 76 (dernière carte)
-    [/(if \(pool\.length\) cards\.push\(pick\(pool\)\); \}) return cards; \}/, '$1 { const f = ARCHIS.find(a => a.no === 76); if (f && !cards.includes(f)) cards[cards.length - 1] = f; } return cards; }'],
 ];
 const BADGE = `
 ;(function(){var d=document.createElement('div');d.textContent='LOCAL → ${SERVEUR}';d.title='Version locale (${path.basename(JEU)}) connectée au vrai serveur';
