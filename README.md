@@ -63,7 +63,24 @@ Le jeu s'ouvre avec ton compte.
 
 Ne joue pas en même temps sur le vrai site et en local : les deux utilisent la même sauvegarde.
 
-## 5. Problèmes fréquents
+## 5. Mettre le jeu en ligne (Render, gratuit)
+
+Le même serveur peut tourner chez [Render](https://render.com) : le jeu devient accessible depuis n'importe où, à une adresse du type `https://krosmofus.onrender.com`.
+
+1. Crée un compte sur https://render.com (connexion avec GitHub, c'est le plus simple).
+2. **New +** → **Blueprint** → choisis le dépôt `krosmofus`. Render lit le fichier `render.yaml` et prépare un service web gratuit.
+3. Clique sur **Apply** (ou **Deploy Blueprint**). Le premier déploiement prend 2 à 3 minutes.
+4. Ouvre l'adresse affichée par Render. Pour Discord, fais l'étape 4 sur `https://<ton-adresse>.onrender.com/transfert` au lieu de localhost : le favori s'adapte tout seul à l'adresse de la page (recrée-le depuis cette page).
+
+En ligne, le serveur garde les protections du jeu (F12, clic droit) et n'affiche pas le badge « LOCAL ».
+Chaque nouveau commit sur la branche choisie redéploie le site automatiquement.
+
+À savoir :
+- **Mise en veille :** l'offre gratuite endort le service après 15 minutes sans visite. La visite suivante attend environ 1 minute le réveil.
+- **Tous les joueurs passent par ce relais** vers krosmofus-tcg.com, avec une seule adresse IP (celle de Render). Mets-le en ligne seulement avec l'accord du propriétaire de krosmofus-tcg.com.
+- Comme en local, chaque joueur doit faire le transfert de session (étape 4) sur la nouvelle adresse : les données sont propres à chaque site.
+
+## 6. Problèmes fréquents
 
 | Ce que tu vois | Solution |
 | --- | --- |

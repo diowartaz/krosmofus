@@ -1,0 +1,11 @@
+{
+  "name": "krosmofus-local",
+  "private": true,
+  "description": "Krosmofus TCG : page du jeu + relais vers krosmofus-tcg.com (local ou hébergé)",
+  "scripts": {
+    "start": "node --use-system-ca dev/serveur-local.js"
+  },
+  "engines": {
+    "node": ">=22.15"
+  }
+}

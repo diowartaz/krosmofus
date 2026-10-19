@@ -1,0 +1,12 @@
+# Déploiement Render (Blueprint) : New + → Blueprint → choisir ce dépôt
+services:
+  - type: web
+    name: krosmofus
+    runtime: node
+    plan: free
+    buildCommand: "true"
+    startCommand: npm start
+    healthCheckPath: /transfert
+    envVars:
+      - key: SERVEUR
+        value: krosmofus-tcg.com

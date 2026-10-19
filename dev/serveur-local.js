@@ -2,24 +2,33 @@
 // et relaie /api et /ws vers le vrai serveur. Aucune dépendance à installer.
 // Utilisation : node dev/serveur-local.js   puis ouvrir http://localhost:8080
 // clear.js et la page sont relus à chaque modification : il suffit de recharger la page (Ctrl + F5).
+// En ligne (Render, ou EN_LIGNE=1) : écoute sur toutes les interfaces, garde les protections du jeu
+// (F12, clic droit) et n'affiche pas le badge LOCAL.
 const http = require('http');
 const https = require('https');
 const tls = require('tls');
 const fs = require('fs');
 const path = require('path');
+const zlib = require('zlib');
 
 const SERVEUR = process.env.SERVEUR || 'krosmofus-tcg.com';
 const PORT = +process.env.PORT || 8080;
+const EN_LIGNE = !!process.env.RENDER || process.env.EN_LIGNE === '1';
 const RACINE = path.join(__dirname, '..');
 const PAGE = path.join(RACINE, 'Krosmofus TCG - Les Songes Infinis.html');
 const JEU = path.join(RACINE, process.argv[2] || 'clear.js');
 
-// Fichier relu seulement quand il a changé sur le disque
+// Fichier relu seulement quand il a changé sur le disque ; garde aussi sa version gzip et son ETag
+// (clear.js pèse 13 Mo : compressé et mis en cache par le navigateur, il ne repasse pas à chaque visite)
 function enCache(fichier, transformer) {
     let mtime = 0, valeur = null;
     return () => {
         const m = fs.statSync(fichier).mtimeMs;
-        if (m !== mtime) { valeur = transformer(fs.readFileSync(fichier, 'utf8')); mtime = m; }
+        if (m !== mtime) {
+            const texte = transformer(fs.readFileSync(fichier, 'utf8'));
+            valeur = { texte, gzip: zlib.gzipSync(texte), etag: `"${Math.round(m).toString(36)}"` };
+            mtime = m;
+        }
         return valeur;
     };
 }
@@ -43,11 +52,13 @@ const ADAPTATIONS = [
     [/location\.protocol !== 'https:'/g, "(location.protocol !== 'https:' && location.hostname !== 'localhost')"],
     [/location\.protocol === 'https:'/g, "(location.protocol === 'https:' || location.hostname === 'localhost')"],
     [/`wss:\/\/\$\{location\.host\}`/g, "`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}`"],
-    // outils de développement autorisés en local : pas de blocage de F12, du clic droit ni de la partie
+];
+// outils de développement autorisés en local seulement : pas de blocage de F12, du clic droit ni de la partie
+if (!EN_LIGNE) ADAPTATIONS.push(
     [/(document\.addEventListener\('keydown', e => \{\s*)if \(isFounder\(\)\) return;/, '$1return;'],
     [/if \(!isFounder\(\) && !\/\^\(INPUT\|TEXTAREA\)\$\/\.test/, 'if (false && !/^(INPUT|TEXTAREA)$/.test'],
     [/^;\(function\(\)\{function lock\(\)\{.*$/m, ''],
-];
+);
 const BADGE = `
 ;(function(){var d=document.createElement('div');d.textContent='LOCAL → ${SERVEUR}';d.title='Version locale (${path.basename(JEU)}) connectée au vrai serveur';
 d.style.cssText='position:fixed;left:8px;bottom:8px;z-index:2147483647;padding:4px 8px;border-radius:6px;background:#c53030;color:#fff;font:700 12px sans-serif;pointer-events:none;opacity:.85';
@@ -59,7 +70,7 @@ const jeu = enCache(JEU, code => {
         code = code.replace(motif, remplacement);
         if (code === avant) console.warn(`Attention : adaptation non appliquée (${motif}) — clear.js a peut-être changé`);
     }
-    return code + BADGE;
+    return EN_LIGNE ? code : code + BADGE;
 });
 
 // Relais HTTP vers le vrai serveur (Host et Origin réécrits pour qu'il accepte la requête)
@@ -82,8 +93,8 @@ function relayer(req, res) {
 // Transfert de session : la connexion Discord ne revient que sur le vrai site (seule adresse déclarée chez Discord).
 // On se connecte donc là-bas, un favori copie les données du jeu, et cette page les recopie sur localhost.
 // Les signatures des données ne dépendent pas de l'adresse du site : elles restent valides.
-const FAVORI = `javascript:(function(){var o={};Object.keys(localStorage).forEach(function(k){if(/^(krosmofus_|krz_)/.test(k)&&k!=='krosmofus_tab')o[k]=localStorage.getItem(k);});var t=document.createElement('textarea');t.value=JSON.stringify(o);document.body.appendChild(t);t.select();var ok=document.execCommand('copy');t.remove();alert(ok?'Session Krosmofus copi\\u00e9e ('+Object.keys(o).length+' donn\\u00e9es). Colle-la sur http://localhost:${PORT}/transfert':'Copie impossible');})();`;
-const PAGE_TRANSFERT = `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+const favori = adresse => `javascript:(function(){var o={};Object.keys(localStorage).forEach(function(k){if(/^(krosmofus_|krz_)/.test(k)&&k!=='krosmofus_tab')o[k]=localStorage.getItem(k);});var t=document.createElement('textarea');t.value=JSON.stringify(o);document.body.appendChild(t);t.select();var ok=document.execCommand('copy');t.remove();alert(ok?'Session Krosmofus copi\\u00e9e ('+Object.keys(o).length+' donn\\u00e9es). Colle-la sur ${adresse}/transfert':'Copie impossible');})();`;
+const pageTransfert = adresse => `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Transfert de session</title><style>
 body{font:15px/1.5 system-ui,sans-serif;max-width:720px;margin:32px auto;padding:0 16px;background:#17121f;color:#eee}
 a.favori{display:inline-block;padding:8px 14px;background:#5865f2;color:#fff;border-radius:6px;text-decoration:none;font-weight:700}
@@ -92,7 +103,7 @@ button{padding:8px 16px;font-weight:700;border:0;border-radius:6px;background:#4
 #msg{margin-top:10px;font-weight:700}</style></head><body>
 <h1>Se connecter en local avec Discord</h1>
 <ol>
-<li>Glisse ce bouton dans ta barre de favoris : <a class="favori" href="${FAVORI.replace(/"/g, '&quot;')}">Copier session Krosmofus</a>
+<li>Glisse ce bouton dans ta barre de favoris : <a class="favori" href="${favori(adresse).replace(/"/g, '&quot;')}">Copier session Krosmofus</a>
 <br>Si tu n'y arrives pas : <button type="button" id="cf" style="background:#5865f2">Copier le code du favori</button>
 puis Ctrl + Maj + O (gestionnaire de favoris) → <i>Ajouter un favori</i> : nom « Copier session Krosmofus », adresse : colle le code (Ctrl + V).
 <span id="cfm" style="color:#48bb78"></span></li>
@@ -124,13 +135,26 @@ function envoyer(res, type, contenu) {
     res.writeHead(200, { 'Content-Type': type, 'Cache-Control': 'no-store' });
     res.end(contenu);
 }
+// Contenu en cache : 304 si le navigateur l'a déjà, sinon gzip quand il l'accepte
+function envoyerCache(req, res, type, { texte, gzip, etag }) {
+    const h = { 'Content-Type': type, 'Cache-Control': 'no-cache', 'ETag': etag, 'Vary': 'Accept-Encoding' };
+    if (req.headers['if-none-match'] === etag) { res.writeHead(304, h); return res.end(); }
+    if (/\bgzip\b/.test(req.headers['accept-encoding'] || '')) { h['Content-Encoding'] = 'gzip'; res.writeHead(200, h); return res.end(gzip); }
+    res.writeHead(200, h);
+    res.end(texte);
+}
+// Adresse publique de la page (http://localhost:8080 en local, https://….onrender.com en ligne)
+function adressePublique(req) {
+    const proto = String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim() || 'http';
+    return `${proto}://${req.headers.host || `localhost:${PORT}`}`;
+}
 
 const serveur = http.createServer((req, res) => {
     const url = decodeURIComponent(req.url.split('?')[0]);
     try {
-        if (url === '/' || url === '/index.html') return envoyer(res, 'text/html; charset=utf-8', page());
-        if (url === '/transfert') return envoyer(res, 'text/html; charset=utf-8', PAGE_TRANSFERT);
-        if (url === '/jeu.js')return envoyer(res, 'text/javascript; charset=utf-8', jeu());
+        if (url === '/' || url === '/index.html') return envoyerCache(req, res, 'text/html; charset=utf-8', page());
+        if (url === '/transfert') return envoyer(res, 'text/html; charset=utf-8', pageTransfert(adressePublique(req)));
+        if (url === '/jeu.js') return envoyerCache(req, res, 'text/javascript; charset=utf-8', jeu());
         if (url.startsWith('/api/')) return relayer(req, res);
         // fichiers enregistrés avec la page (polices, thème néon…)
         const fichier = path.join(RACINE, url);
@@ -161,7 +185,9 @@ serveur.on('upgrade', (req, client, debut) => {
     distant.on('close', fermer); client.on('close', fermer);
 });
 
-serveur.listen(PORT, '127.0.0.1', () => {
+// en local, seul ce PC y a accès ; en ligne, l'hébergeur doit pouvoir joindre le serveur
+serveur.listen(PORT, EN_LIGNE ? '0.0.0.0' : '127.0.0.1', () => {
+    if (EN_LIGNE) return console.log(`Krosmofus en ligne sur le port ${PORT} (jeu : ${path.basename(JEU)}, serveur : ${SERVEUR})`);
     console.log(`Krosmofus local : http://localhost:${PORT}  (jeu : ${path.basename(JEU)}, serveur : ${SERVEUR})`);
     console.log(`Connexion Discord : http://localhost:${PORT}/transfert`);
     console.log('Attention : tout ce que tu fais est envoyé au vrai serveur (sauvegarde en ligne, tchat, HDV…).');
