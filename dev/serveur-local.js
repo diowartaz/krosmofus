@@ -132,10 +132,10 @@ const serveur = http.createServer((req, res) => {
         if (url === '/transfert') return envoyer(res, 'text/html; charset=utf-8', PAGE_TRANSFERT);
         if (url === '/jeu.js')return envoyer(res, 'text/javascript; charset=utf-8', jeu());
         if (url.startsWith('/api/')) return relayer(req, res);
-        // fichiers enregistrés avec la page (polices…)
+        // fichiers enregistrés avec la page (polices, thème néon…)
         const fichier = path.join(RACINE, url);
         if (fichier.startsWith(path.join(RACINE, 'Krosmofus TCG - Les Songes Infinis_files')) && fs.existsSync(fichier))
-            return envoyer(res, 'text/css; charset=utf-8', fs.readFileSync(fichier));
+            return envoyer(res, (fichier.endsWith('.js') ? 'text/javascript' : 'text/css') + '; charset=utf-8', fs.readFileSync(fichier));
         // le reste (images, favicon…) vient du vrai site
         return relayer(req, res);
     } catch (e) {

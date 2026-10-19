@@ -23,7 +23,7 @@ krosmofus/
 ├── lancer.bat
 ├── clear.js
 ├── Krosmofus TCG - Les Songes Infinis.html
-├── Krosmofus TCG - Les Songes Infinis_files/
+├── Krosmofus TCG - Les Songes Infinis_files/   (polices + thème néon)
 └── dev/
     └── serveur-local.js
 ```
@@ -37,6 +37,8 @@ Si c'est un `.zip`, clic droit → **Extraire tout** avant de continuer : le jeu
 3. Le navigateur s'ouvre tout seul sur http://localhost:8080/. Sinon, tape cette adresse toi-même.
 
 Un badge rouge **« LOCAL → krosmofus-tcg.com »** en bas à gauche confirme que tu es sur la version locale.
+
+Le jeu s'affiche avec le **thème Néon**. Le bouton **« Néon »** au bout de la barre de menu permet de revenir au thème **Classique** (et inversement) ; le choix est mémorisé par le navigateur.
 
 Si Windows affiche « Windows a protégé votre ordinateur », clique sur **Informations complémentaires** → **Exécuter quand même**.
 Si le pare-feu demande l'accès réseau pour Node.js, tu peux accepter.
